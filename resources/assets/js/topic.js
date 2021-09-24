@@ -1834,6 +1834,130 @@ module.exports = {
 
 /***/ }),
 
+/***/ "./node_modules/copy-to-clipboard/index.js":
+/*!*************************************************!*\
+  !*** ./node_modules/copy-to-clipboard/index.js ***!
+  \*************************************************/
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+"use strict";
+
+
+var deselectCurrent = __webpack_require__(/*! toggle-selection */ "./node_modules/toggle-selection/index.js");
+
+var clipboardToIE11Formatting = {
+  "text/plain": "Text",
+  "text/html": "Url",
+  "default": "Text"
+}
+
+var defaultMessage = "Copy to clipboard: #{key}, Enter";
+
+function format(message) {
+  var copyKey = (/mac os x/i.test(navigator.userAgent) ? "⌘" : "Ctrl") + "+C";
+  return message.replace(/#{\s*key\s*}/g, copyKey);
+}
+
+function copy(text, options) {
+  var debug,
+    message,
+    reselectPrevious,
+    range,
+    selection,
+    mark,
+    success = false;
+  if (!options) {
+    options = {};
+  }
+  debug = options.debug || false;
+  try {
+    reselectPrevious = deselectCurrent();
+
+    range = document.createRange();
+    selection = document.getSelection();
+
+    mark = document.createElement("span");
+    mark.textContent = text;
+    // reset user styles for span element
+    mark.style.all = "unset";
+    // prevents scrolling to the end of the page
+    mark.style.position = "fixed";
+    mark.style.top = 0;
+    mark.style.clip = "rect(0, 0, 0, 0)";
+    // used to preserve spaces and line breaks
+    mark.style.whiteSpace = "pre";
+    // do not inherit user-select (it may be `none`)
+    mark.style.webkitUserSelect = "text";
+    mark.style.MozUserSelect = "text";
+    mark.style.msUserSelect = "text";
+    mark.style.userSelect = "text";
+    mark.addEventListener("copy", function(e) {
+      e.stopPropagation();
+      if (options.format) {
+        e.preventDefault();
+        if (typeof e.clipboardData === "undefined") { // IE 11
+          debug && console.warn("unable to use e.clipboardData");
+          debug && console.warn("trying IE specific stuff");
+          window.clipboardData.clearData();
+          var format = clipboardToIE11Formatting[options.format] || clipboardToIE11Formatting["default"]
+          window.clipboardData.setData(format, text);
+        } else { // all other browsers
+          e.clipboardData.clearData();
+          e.clipboardData.setData(options.format, text);
+        }
+      }
+      if (options.onCopy) {
+        e.preventDefault();
+        options.onCopy(e.clipboardData);
+      }
+    });
+
+    document.body.appendChild(mark);
+
+    range.selectNodeContents(mark);
+    selection.addRange(range);
+
+    var successful = document.execCommand("copy");
+    if (!successful) {
+      throw new Error("copy command was unsuccessful");
+    }
+    success = true;
+  } catch (err) {
+    debug && console.error("unable to copy using execCommand: ", err);
+    debug && console.warn("trying IE specific stuff");
+    try {
+      window.clipboardData.setData(options.format || "text", text);
+      options.onCopy && options.onCopy(window.clipboardData);
+      success = true;
+    } catch (err) {
+      debug && console.error("unable to copy using clipboardData: ", err);
+      debug && console.error("falling back to prompt");
+      message = format("message" in options ? options.message : defaultMessage);
+      window.prompt(message, text);
+    }
+  } finally {
+    if (selection) {
+      if (typeof selection.removeRange == "function") {
+        selection.removeRange(range);
+      } else {
+        selection.removeAllRanges();
+      }
+    }
+
+    if (mark) {
+      document.body.removeChild(mark);
+    }
+    reselectPrevious();
+  }
+
+  return success;
+}
+
+module.exports = copy;
+
+
+/***/ }),
+
 /***/ "./node_modules/izitoast/dist/js/iziToast.js":
 /*!***************************************************!*\
   !*** ./node_modules/izitoast/dist/js/iziToast.js ***!
@@ -3505,6 +3629,55 @@ module.exports = function(obj, sep, eq, name) {
 
 exports.decode = exports.parse = __webpack_require__(/*! ./decode */ "./node_modules/querystring/decode.js");
 exports.encode = exports.stringify = __webpack_require__(/*! ./encode */ "./node_modules/querystring/encode.js");
+
+
+/***/ }),
+
+/***/ "./node_modules/toggle-selection/index.js":
+/*!************************************************!*\
+  !*** ./node_modules/toggle-selection/index.js ***!
+  \************************************************/
+/***/ ((module) => {
+
+
+module.exports = function () {
+  var selection = document.getSelection();
+  if (!selection.rangeCount) {
+    return function () {};
+  }
+  var active = document.activeElement;
+
+  var ranges = [];
+  for (var i = 0; i < selection.rangeCount; i++) {
+    ranges.push(selection.getRangeAt(i));
+  }
+
+  switch (active.tagName.toUpperCase()) { // .toUpperCase handles XHTML
+    case 'INPUT':
+    case 'TEXTAREA':
+      active.blur();
+      break;
+
+    default:
+      active = null;
+      break;
+  }
+
+  selection.removeAllRanges();
+  return function () {
+    selection.type === 'Caret' &&
+    selection.removeAllRanges();
+
+    if (!selection.rangeCount) {
+      ranges.forEach(function(range) {
+        selection.addRange(range);
+      });
+    }
+
+    active &&
+    active.focus();
+  };
+};
 
 
 /***/ }),
@@ -18969,11 +19142,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var axios__WEBPACK_IMPORTED_MODULE_1___default = /*#__PURE__*/__webpack_require__.n(axios__WEBPACK_IMPORTED_MODULE_1__);
 /* harmony import */ var izitoast__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! izitoast */ "./node_modules/izitoast/dist/js/iziToast.js");
 /* harmony import */ var izitoast__WEBPACK_IMPORTED_MODULE_2___default = /*#__PURE__*/__webpack_require__.n(izitoast__WEBPACK_IMPORTED_MODULE_2__);
+/* harmony import */ var copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! copy-to-clipboard */ "./node_modules/copy-to-clipboard/index.js");
+/* harmony import */ var copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default = /*#__PURE__*/__webpack_require__.n(copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3__);
 
 
 
 
 var qs = __webpack_require__(/*! querystring */ "./node_modules/querystring/index.js");
+
+
 
 if (document.getElementById("create-topic-vue")) {
   var create_topic_vue = {
@@ -19001,7 +19178,8 @@ if (document.getElementById("create-topic-vue")) {
         tag_selected: 1,
         tags: [{
           "text": "请选择",
-          "value": "Default"
+          "value": "Default",
+          "icons": "1"
         }],
         userAtList: [],
         topic_keywords: []
@@ -19081,7 +19259,7 @@ if (document.getElementById("create-topic-vue")) {
           _token: csrf_token,
           options_hidden_user_list: options_hidden_user_list,
           options_hidden_user_class: options_hidden_user_class,
-          options_hidden_tfixTermTypoype: options_hidden_type,
+          options_hidden_type: options_hidden_type,
           title: this.title,
           html: html,
           markdown: markdown,
@@ -19152,9 +19330,12 @@ if (document.getElementById("create-topic-vue")) {
 
             var md = _this2.vditor.getSelection();
 
-            _this2.vditor.focus();
-
-            _this2.vditor.updateValue("[topic=" + id + "]" + md + "[/topic]");
+            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default()('[topic=' + id + ']' + md + '[/topic]');
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+              title: "Success",
+              message: "短代码已复制,请在合适位置粘贴",
+              position: "topRight"
+            });
           }
         });
       },
@@ -19332,11 +19513,6 @@ if (document.getElementById("create-topic-vue")) {
 
 if (document.getElementById("topic-content")) {
   var previewElement = document.getElementById("topic-content");
-  previewElement.addEventListener("click", function (event) {
-    if (event.target.tagName === "IMG") {
-      vditor__WEBPACK_IMPORTED_MODULE_0___default().previewImage(event.target);
-    }
-  });
   vditor__WEBPACK_IMPORTED_MODULE_0___default().mermaidRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().abcRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().chartRender(previewElement);
@@ -19350,11 +19526,385 @@ if (document.getElementById("topic-content")) {
   }, previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().flowchartRender(previewElement);
   vditor__WEBPACK_IMPORTED_MODULE_0___default().plantumlRender(previewElement);
-  previewElement.addEventListener("click", function (event) {
-    if (event.target.tagName === "IMG") {
-      vditor__WEBPACK_IMPORTED_MODULE_0___default().previewImage(event.target);
+} // 编辑帖子
+
+
+if (document.getElementById("edit-topic-vue")) {
+  var edit_topic_vue = {
+    data: function data() {
+      return {
+        topic_id: topic_id,
+        vditor: '',
+        title: '',
+        edit: {
+          mode: "ir",
+          preview: {
+            mode: "editor"
+          }
+        },
+        options: {
+          summary: '',
+          hidden: {
+            type: "close",
+            user: {
+              list: [],
+              selected: null
+            },
+            user_class: []
+          }
+        },
+        tag_selected: 1,
+        tags: [{
+          "text": "请选择",
+          "value": "Default",
+          "icons": "1"
+        }],
+        userAtList: [],
+        topic_keywords: []
+      };
+    },
+    methods: {
+      edit_reply: function edit_reply() {
+        var md = this.vditor.getSelection();
+        this.vditor.updateValue("[reply]" + md + "[/reply]");
+      },
+      edit_mode: function edit_mode() {
+        if (this.edit.mode === "ir") {
+          this.edit.mode = "wysiwyg";
+          this.init();
+        } else {
+          if (this.edit.mode === "wysiwyg") {
+            this.edit.mode = "sv";
+            this.edit.preview.mode = "editor";
+            this.init();
+          } else {
+            if (this.edit.mode === "sv") {
+              if (this.edit.preview.mode === "editor") {
+                this.edit.mode = "sv";
+                this.edit.preview.mode = "both";
+                this.init();
+              } else {
+                if (this.edit.preview.mode === "both") {
+                  this.edit.mode = "ir";
+                  this.edit.preview.mode = "editor";
+                  this.init();
+                }
+              }
+            }
+          }
+        }
+
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().show({
+          title: 'success',
+          message: '切换成功!',
+          color: "#63ed7a",
+          position: 'topRight',
+          messageColor: '#ffffff',
+          titleColor: '#ffffff'
+        });
+      },
+      submit: function submit() {
+        var _this5 = this;
+
+        var options_hidden_user_list = qs.stringify(this.options.hidden.user.list);
+        var options_hidden_user_class = qs.stringify(this.options.hidden.user_class);
+        var options_hidden_type = this.options.hidden.type;
+        var html = this.vditor.getHTML();
+        var markdown = this.vditor.getValue();
+        var tags = this.tag_selected;
+        var title = this.title;
+        var summary = this.options.summary;
+
+        if (!title) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '标题不能为空'
+          });
+          return;
+        }
+
+        if (!html || !markdown) {
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '正文内容不能为空'
+          });
+          return;
+        }
+
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/topic/edit", {
+          _token: csrf_token,
+          topic_id: this.topic_id,
+          options_hidden_user_list: options_hidden_user_list,
+          options_hidden_user_class: options_hidden_user_class,
+          options_hidden_tfixTermTypoype: options_hidden_type,
+          title: this.title,
+          html: html,
+          markdown: markdown,
+          tag: tags,
+          options_summary: summary
+        }).then(function (r) {
+          var data = r.data;
+
+          if (!data.success) {
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: "error",
+                message: value,
+                position: "topRight",
+                timeout: 10000
+              });
+            });
+          } else {
+            localStorage.removeItem("topic_create_title");
+            localStorage.removeItem("topic_create_tag");
+
+            _this5.vditor.clearCache();
+
+            data.result.forEach(function (value) {
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+                title: "success",
+                message: value,
+                position: "topRight",
+                timeout: 10000
+              });
+            });
+            setTimeout(function () {
+              location.href = "/";
+            }, 2000);
+          }
+        })["catch"](function (e) {
+          console.error(e);
+          izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+            title: 'Error',
+            position: 'topRight',
+            message: '请求出错,详细查看控制台'
+          });
+        });
+      },
+      // 帖子引用
+      edit_with_topic: function edit_with_topic() {
+        var _this6 = this;
+
+        swal("输入帖子id或帖子链接:", {
+          content: "input"
+        }).then(function (value) {
+          if (value) {
+            var id;
+
+            if (!/(^[1-9]\d*$)/.test(value)) {
+              value = value.match(/\/(\S*)\.html/);
+
+              if (value) {
+                value = value[1];
+              } else {
+                return;
+              }
+
+              id = value.substring(value.lastIndexOf("/") + 1);
+            } else {
+              id = value;
+            }
+
+            var md = _this6.vditor.getSelection();
+
+            copy_to_clipboard__WEBPACK_IMPORTED_MODULE_3___default()('[topic=' + id + ']' + md + '[/topic]');
+            izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+              title: "Success",
+              message: "短代码已复制,请在合适位置粘贴",
+              position: "topRight"
+            });
+          }
+        });
+      },
+      edit_toc: function edit_toc() {
+        var md = this.vditor.getValue();
+        this.vditor.setValue("[toc]\n" + md);
+      },
+      init: function init() {
+        var _this7 = this;
+
+        // tags
+        axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/tags", {
+          _token: csrf_token
+        }).then(function (response) {
+          _this7.tags = response.data;
+        })["catch"](function (e) {
+          console.error(e);
+        }); // vditor
+
+        this.vditor = new (vditor__WEBPACK_IMPORTED_MODULE_0___default())('content-vditor', {
+          height: 400,
+          toolbarConfig: {
+            pin: true
+          },
+          cache: {
+            enable: false
+          },
+          preview: {
+            markdown: {
+              toc: true,
+              mark: true,
+              autoSpace: true
+            }
+          },
+          mode: this.edit.mode,
+          toolbar: ["emoji", "headings", "bold", "italic", "strike", "link", "|", "list", "ordered-list", "outdent", "indent", "|", "quote", "line", "code", "inline-code", "insert-before", "insert-after", "|", "upload", "record", "table", "|", "undo", "redo", "|", "fullscreen", "edit-mode"],
+          counter: {
+            "enable": true,
+            "type": "已写字数"
+          },
+          hint: {
+            extend: [{
+              key: '@',
+              hint: function hint(key) {
+                return _this7.userAtList;
+              }
+            }, {
+              key: '$',
+              hint: function hint(key) {
+                return _this7.topic_keywords;
+              }
+            }]
+          },
+          upload: {
+            accept: 'image/*,.wav',
+            token: csrf_token,
+            url: imageUpUrl,
+            linkToImgUrl: imageUpUrl,
+            filename: function filename(name) {
+              return name.replace(/[^(a-zA-Z0-9\u4e00-\u9fa5\.)]/g, '').replace(/[\?\\/:|<>\*\[\]\(\)\$%\{\}@~]/g, '').replace('/\\s/g', '');
+            }
+          },
+          typewriterMode: true,
+          placeholder: "请输入正文",
+          after: function after() {
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@user_list", {
+              _token: csrf_token
+            }).then(function (r) {
+              _this7.userAtList = r.data;
+            })["catch"](function (e) {
+              swal({
+                title: "获取本站用户列表失败,详细查看控制台",
+                icon: "error"
+              });
+              console.error(e);
+            });
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/keywords", {
+              _token: csrf_token
+            }).then(function (r) {
+              _this7.topic_keywords = r.data;
+            })["catch"](function (e) {
+              swal({
+                title: "获取话题列表失败,详细查看控制台",
+                icon: "error"
+              });
+              console.error(e);
+            });
+            axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/topic/topic.data", {
+              _token: csrf_token,
+              topic_id: _this7.topic_id
+            }).then(function (r) {
+              var data = r.data;
+
+              if (!data.success) {
+                izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                  title: 'Error',
+                  position: 'topRight',
+                  message: data.result.msg
+                });
+              } else {
+                console.log(data);
+
+                _this7.setTopicValue(data.result);
+              }
+            })["catch"](function (e) {
+              console.error(e);
+              izitoast__WEBPACK_IMPORTED_MODULE_2___default().error({
+                title: 'Error',
+                position: 'topRight',
+                message: '请求出错,详细查看控制台'
+              });
+            });
+          },
+          input: function input(md) {},
+          select: function select(md) {
+            // 回复可见
+            swal({
+              title: "你选中了一段文字",
+              text: "是否将选中的文字设为回复可见?",
+              buttons: true,
+              icon: "warning"
+            }).then(function (click) {
+              if (click) {
+                _this7.vditor.updateValue("[reply]" + md + "[/reply]");
+              } else {
+                _this7.vditor.focus();
+              }
+            });
+          }
+        });
+      },
+      hidden_user_remove: function hidden_user_remove(username) {
+        this.options.hidden.user.list.splice(this.options.hidden.user.list.indexOf(username), 1);
+        izitoast__WEBPACK_IMPORTED_MODULE_2___default().success({
+          title: "Success",
+          message: "已将 " + username + " 从可见列表中移除",
+          position: 'topRight'
+        });
+      },
+      hidden_user_add: function hidden_user_add() {
+        var _this8 = this;
+
+        var username = this.options.hidden.user.selected;
+
+        if (this.options.hidden.user.list.indexOf(username) === -1) {
+          axios__WEBPACK_IMPORTED_MODULE_1___default().post("/api/user/@has_user_username/" + username, {
+            _token: csrf_token
+          }).then(function (r) {
+            var data = r.data;
+
+            if (data.success) {
+              _this8.options.hidden.user.list.push(username);
+
+              _this8.options.hidden.user.selected = null;
+            } else {
+              swal({
+                title: "新增用户失败,原因:" + data.result.msg,
+                icon: "error"
+              });
+            }
+          })["catch"](function (e) {
+            swal({
+              title: "接口请求失败,详细查看控制台",
+              icon: "error"
+            });
+            console.error(e);
+          });
+        } else {
+          swal("用户:" + username + "已存在,无需重复添加");
+        }
+      },
+      setTopicValue: function setTopicValue(data) {
+        this.title = data.title;
+        this.vditor.setValue(data.markdown);
+        this.tag_selected = data.tag.id;
+        this.options.summary = data.options.summary;
+        this.options.hidden.type = data.options.hidden.type;
+        this.options.hidden.user.list = data.options.hidden.users;
+        this.options.hidden.user_class = data.options.hidden.user_class;
+      }
+    },
+    mounted: function mounted() {
+      this.init();
+    },
+    watch: {
+      title: function title(_title2) {},
+      tag_selected: function tag_selected(tag) {}
     }
-  });
+  };
+  Vue.createApp(edit_topic_vue).mount("#edit-topic-vue");
 }
 })();
 
