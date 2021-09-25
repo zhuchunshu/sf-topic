@@ -3490,10 +3490,12 @@ $(function () {
   $("#topic-content a").each(function () {
     var a = $(this);
 
-    if (a.children().get(0).tagName === "IMG" || a.children().get(0).tagName === "img") {
-      a.attr("data-fancybox", "gallery");
-      var img_alt = a.children().attr("alt");
-      a.attr("data-caption", img_alt);
+    if (a.children().length > 0) {
+      if (a.children().get(0).tagName === "IMG" || a.children().get(0).tagName === "img") {
+        a.attr("data-fancybox", "gallery");
+        var img_alt = a.children().attr("alt");
+        a.attr("data-caption", img_alt);
+      }
     }
   });
 });
@@ -3517,8 +3519,11 @@ $(function () {
         });
       } else {
         // 点赞成功!
-        var y_likes = $(_this).children('span[core-show="topic-likes"]').text();
+        var likes_text = $(_this).children('span[core-show="topic-likes"]');
+        var y_likes = likes_text.text();
         y_likes = parseInt(y_likes);
+        $(_this).children('svg[core-show="topic-likes"]').remove();
+        likes_text.before("\n                    \n                ");
         $(_this).children('span[core-show="topic-likes"]').text(y_likes + 1);
       }
     })["catch"](function (e) {
@@ -3530,6 +3535,11 @@ $(function () {
       });
       console.error(e);
     });
+  });
+});
+$(function () {
+  $('span[core-click="user-avatar"]').click(function () {
+    location.href = "/users/" + $(this).attr("username") + ".html";
   });
 });
 })();

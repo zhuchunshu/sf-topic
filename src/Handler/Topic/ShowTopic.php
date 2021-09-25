@@ -7,19 +7,26 @@ use Hyperf\Utils\Str;
 
 class ShowTopic
 {
-    public function handle($id): \Psr\Http\Message\ResponseInterface
+    public function handle($id)
     {
         // 自增浏览量
-        go(static function() use ($id){
-            $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
-            Topic::query()->where('id', $id)->increment('view',1,['updated_at' => $updated_at]);
-        });
-        $data = Topic::query()
-            ->where('id', $id)
-            ->with("tag","user")
-            ->first();
+        $updated_at = Topic::query()->where('id', $id)->first()->updated_at;
+        Topic::query()->where('id', $id)->increment('view',1,['updated_at' => $updated_at]);
+
+        if(!cache()->has("topic.data.".$id)){
+            $data = Topic::query()
+                ->where('id', $id)
+                ->with("tag","user","topic_updated","update_user")
+                ->first();
+            cache()->set("topic.data.".$id, $data);
+        }else{
+            $data = cache()->get("topic.data.".$id);
+        }
+        $shang = Topic::query()->where([['id','<',$id],['status','publish']])->select('title','id')->orderBy('id','desc')->first();
+        $xia = Topic::query()->where([['id','>',$id],['status','publish']])->select('title','id')->orderBy('id','asc')->first();
+        $sx = ['shang' => $shang,'xia' => $xia];
         $this->session($data);
-        return view('plugins.Core.topic.show.show',['data' => $data]);
+        return view('plugins.Core.topic.show.show',['data' => $data,'get_topic' => $sx]);
     }
 
     public function session($data){

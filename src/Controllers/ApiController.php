@@ -109,4 +109,74 @@ class ApiController
         $data['options'] = $options;
         return Json_Api(200,true,$data);
     }
+
+    #[PostMapping(path:"set.topic.essence")]
+    public function set_topic_essence(): array
+    {
+        $topic_id = request()->input("topic_id");
+        $zhishu = request()->input("zhishu");
+        if(!$topic_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
+        }
+        if(empty($zhishu) && $zhishu!=0){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:zhishu']);
+        }
+        if(!auth()->check() || !Authority()->check("topic_options")){
+            return Json_Api(401,false,['msg' => '权限不足!']);
+        }
+        if(!Topic::query()->where("id",$topic_id)->exists()){
+            return Json_Api(403,false,['msg' => '被操作的帖子不存在']);
+        }
+        if(!is_numeric($zhishu)){
+            return Json_Api(403,false,['msg' => '精华指数必须为数字']);
+        }
+        if($zhishu<0 || $zhishu>999){
+            return Json_Api(403,false,['msg' => '精华指数 必须大于或等于0 并且小于或等于999']);
+        }
+        if($zhishu===0){
+            Topic::query()->where("id",$topic_id)->update([
+                "essence" => null
+            ]);
+        }else{
+            Topic::query()->where("id",$topic_id)->update([
+                "essence" => $zhishu
+            ]);
+        }
+        return Json_Api(200,true,['msg' => '更新成功!']);
+    }
+
+    #[PostMapping(path:"set.topic.topping")]
+    public function set_topic_topping(): array
+    {
+        $topic_id = request()->input("topic_id");
+        $zhishu = request()->input("zhishu");
+        if(!$topic_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
+        }
+        if($zhishu!=0 && empty($zhishu)){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:zhishu']);
+        }
+        if(!auth()->check() || !Authority()->check("topic_options")){
+            return Json_Api(401,false,['msg' => '权限不足!']);
+        }
+        if(!Topic::query()->where("id",$topic_id)->exists()){
+            return Json_Api(403,false,['msg' => '被操作的帖子不存在']);
+        }
+        if(!is_numeric($zhishu)){
+            return Json_Api(403,false,['msg' => '置顶指数必须为数字']);
+        }
+        if($zhishu<0 || $zhishu>999){
+            return Json_Api(403,false,['msg' => '置顶指数 必须大于或等于0 并且小于或等于999']);
+        }
+        if($zhishu===0){
+            Topic::query()->where("id",$topic_id)->update([
+                "topping" => null
+            ]);
+        }else{
+            Topic::query()->where("id",$topic_id)->update([
+                "topping" => $zhishu
+            ]);
+        }
+        return Json_Api(200,true,['msg' => '置顶成功!']);
+    }
 }
