@@ -3522,9 +3522,12 @@ $(function () {
         var likes_text = $(_this).children('span[core-show="topic-likes"]');
         var y_likes = likes_text.text();
         y_likes = parseInt(y_likes);
-        $(_this).children('svg[core-show="topic-likes"]').remove();
-        likes_text.before("\n                    \n                ");
-        $(_this).children('span[core-show="topic-likes"]').text(y_likes + 1);
+
+        if (data.code === 200) {
+          $(_this).children('span[core-show="topic-likes"]').text(y_likes + 1);
+        } else {
+          $(_this).children('span[core-show="topic-likes"]').text(y_likes - 1);
+        }
       }
     })["catch"](function (e) {
       izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
@@ -3540,6 +3543,85 @@ $(function () {
 $(function () {
   $('span[core-click="user-avatar"]').click(function () {
     location.href = "/users/" + $(this).attr("username") + ".html";
+  });
+});
+$(function () {
+  if (!window.location.hash && typeof comment_id !== "undefined") {
+    window.location.hash = "#comment-" + comment_id;
+    var target = $(location.hash);
+
+    if (target.length === 1) {
+      var top = target.offset().top - 200;
+      $('html,body').animate({
+        scrollTop: top + "px"
+      }, 1000);
+    }
+
+    var url = document.URL;
+    url = url.replace(window.location.hash, "");
+    history.replaceState(null, document.title, url);
+  }
+});
+$(function () {
+  // 关注用户
+  $('a[user-click="user_follow"]').click(function () {
+    var user_id = $(this).attr("user-id");
+    var th = $(this);
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/userfollow", {
+      _token: csrf_token,
+      user_id: user_id
+    }).then(function (r) {
+      var data = r.data;
+
+      if (data.success === true) {
+        if (data.code === 200) {
+          th.children('span').text(data.result.msg);
+        } else {
+          th.children('span').text("关注");
+        }
+
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().success({
+          title: "Success",
+          message: data.result.msg,
+          position: "topRight"
+        });
+      } else {
+        izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+          title: "Error",
+          message: data.result.msg,
+          position: "topRight"
+        });
+      }
+    })["catch"](function (e) {
+      console.error(e);
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        title: "Error",
+        message: "请求出错,详细查看控制台",
+        position: "topRight"
+      });
+    });
+  }); //查询关注状态
+
+  $('a[user-click="user_follow"]').each(function () {
+    var user_id = $(this).attr("user-id");
+    var th = $(this);
+    axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/user/userfollow.data", {
+      _token: csrf_token,
+      user_id: user_id
+    }).then(function (r) {
+      var data = r.data;
+
+      if (data.success === true) {
+        th.children('span').text(data.result.msg);
+      }
+    })["catch"](function (e) {
+      console.error(e);
+      izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+        title: "Error",
+        message: "请求出错,详细查看控制台",
+        position: "topRight"
+      });
+    });
   });
 });
 })();

@@ -12,9 +12,11 @@ use Hyperf\HttpServer\Annotation\Controller;
 use Hyperf\HttpServer\Annotation\GetMapping;
 use Hyperf\HttpServer\Annotation\Middleware;
 use Hyperf\HttpServer\Annotation\PostMapping;
+use Hyperf\RateLimit\Annotation\RateLimit;
 use Hyperf\Utils\Arr;
 
 #[Controller(prefix:"/api/topic")]
+#[RateLimit(create:5, capacity:12)]
 class ApiController
 {
     #[PostMapping(path:"tags")]
@@ -76,11 +78,13 @@ class ApiController
         if(!$topic_id){
             return Json_Api(403,false,['msg' => '请求参数:topic_id 不存在!']);
         }
-        if(!Topic::query()->where('id',$topic_id)->exists()) {
+        if(!Topic::query()->where([['id',$topic_id,'status'=>'publish']])->exists()) {
             return Json_Api(403,false,['msg' => 'id为:'.$topic_id."的帖子不存在"]);
         }
         if(TopicLike::query()->where(['topic_id'=>$topic_id,'user_id'=>auth()->id(),"type" => 'like'])->exists()) {
-            return Json_Api(403,false,['msg' => '您赞过这个帖子了,无需重复点赞!']);
+            TopicLike::query()->where(['topic_id'=>$topic_id,'user_id'=>auth()->id(),"type" => 'like'])->delete();
+            Topic::query()->where(['id'=>$topic_id])->decrement("like");
+            return Json_Api(201,true,['msg' => '已取消点赞']);
         }
         TopicLike::query()->create([
             "topic_id" => $topic_id,
@@ -110,6 +114,7 @@ class ApiController
         return Json_Api(200,true,$data);
     }
 
+    // 设置精华
     #[PostMapping(path:"set.topic.essence")]
     public function set_topic_essence(): array
     {
@@ -145,6 +150,7 @@ class ApiController
         return Json_Api(200,true,['msg' => '更新成功!']);
     }
 
+    // 设置指定
     #[PostMapping(path:"set.topic.topping")]
     public function set_topic_topping(): array
     {
@@ -178,5 +184,33 @@ class ApiController
             ]);
         }
         return Json_Api(200,true,['msg' => '置顶成功!']);
+    }
+
+    // 设置指定
+    #[PostMapping(path:"set.topic.delete")]
+    public function set_topic_delete(): array
+    {
+        $topic_id = request()->input("topic_id");
+        if(!$topic_id){
+            return Json_Api(403,false,['msg' => '请求参数不足,缺少:topic_id']);
+        }
+        if(!Topic::query()->where("id",$topic_id)->exists()){
+            return Json_Api(403,false,['msg' => '被删除的帖子不存在']);
+        }
+        $data = Topic::query()->where("id",$topic_id)->first();
+        $quanxian = false;
+        if(Authority()->check("admin_topic_edit") && curd()->GetUserClass(auth()->data()->class_id)['permission-value']>curd()->GetUserClass($data->user->class_id)['permission-value']){
+            $quanxian =true;
+        }else if(Authority()->check("topic_edit") && auth()->id() === $data->user->id){
+            $quanxian =true;
+        }
+
+        if(!auth()->check() || $quanxian===false){
+            return Json_Api(401,false,['msg' => '权限不足!']);
+        }
+        Topic::query()->where("id",$topic_id)->update([
+            "status" => "delete"
+        ]);
+        return Json_Api(200,true,['msg' => '已删除!']);
     }
 }
