@@ -3683,8 +3683,8 @@ $(function () {
 
   $('a[comment-click="report-comment"]').click(function () {
     $("#modal-report-title").text("举报此评论");
-    $("#modal-report-input-type").val("topic");
-    $("#modal-report-input-type-id").val($(this).attr("topic-id"));
+    $("#modal-report-input-type").val("comment");
+    $("#modal-report-input-type-id").val($(this).attr("comment-id"));
     $("#modal-report-input-content").val("违规页面地址:" + location.protocol + "//" + location.host + $(this).attr("url"));
     var selected = $("#modal-report-select").val();
     $("#modal-report-input-url").val(location.protocol + "//" + location.host + $(this).attr("url"));
@@ -3762,7 +3762,32 @@ function removeBlock(str) {
   }
 
   return str;
-}
+} // 处理被举报的评论
+
+
+$(function () {
+  axios__WEBPACK_IMPORTED_MODULE_0___default().post("/api/core/report/approve.comment", {
+    _token: csrf_token
+  }).then(function (r) {
+    var data = r.data.result;
+    $("div[core-show=\"comment\"]").each(function () {
+      var comment_id = $(this).attr("comment-id");
+
+      if (data.indexOf(comment_id) >= 0) {
+        $(this).html('此内容被举报,无法展示');
+        $(this).css('background-image', 'url(/plugins/Core/image/comment-ban.png)');
+        $(this).css('background-size', 'cover');
+      }
+    });
+  })["catch"](function (e) {
+    console.error(e);
+    izitoast__WEBPACK_IMPORTED_MODULE_1___default().error({
+      title: "Error",
+      position: "topRight",
+      message: "请求出错,详细查看控制台"
+    });
+  });
+});
 })();
 
 /******/ })()
